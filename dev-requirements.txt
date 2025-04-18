@@ -1,2 +1,2 @@
-mutmut
-hypothesis
+mutmut>=2.1.0,<3.0
+hypothesis>=6.0,<7.0

@@ -31,11 +31,16 @@ DEFAULT_CONFIG = {
             'List each issue with line numbers, a description, and a suggested fix:\n\n'
             '{code}'
         ),
-        # Template for generating conventional commit messages
-        'commit': (
-            'Write a conventional commit message (type, scope, subject) '
-            'for the following diff, following Conventional Commits format:\n\n'
-            '{diff}'
+        # Default prompt for generating docstrings
+        'docstring': (
+            'Write a Python docstring for the following {object_type} in {language} code, '
+            'including descriptions of parameters and return values where applicable:\n\n'
+            '{code}'
+        ),
+        # Default prompt for explaining code snippets
+        'explain': (
+            'Explain what the following {language} code does, providing a detailed, step-by-step explanation:\n\n'
+            '{code}'
         )
     }
 }

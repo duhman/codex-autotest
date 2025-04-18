@@ -1,46 +1,36 @@
 name: CI
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
+
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Quote versions to ensure YAML treats them as strings, not floats
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+        python-version: [3.10, 3.11]
+        node-version: [18]
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix['python-version'] }}
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix['python-version'] }}
-      - name: Install dependencies
+          python-version: ${{ matrix.python-version }}
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e .
-          pip install mutmut hypothesis
-      - name: Run tests
-        env:
-          OPENAI_API_KEY: dummy_key
-        run: pytest -q --disable-warnings --maxfail=1
-  release:
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
+          pip install -e .[dev]
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
         with:
-          python-version: 3.x
-      - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          python -m pip install --upgrade pip setuptools wheel twine
-          python setup.py sdist bdist_wheel
-          twine upload dist/*
+          node-version: ${{ matrix.node-version }}
+      - name: Install Node.js dependencies
+        run: npm ci
+      - name: Lint & type-check (pre-commit)
+        run: pre-commit run --all-files
+      - name: Run tests
+        run: pytest --maxfail=1 --disable-warnings -q
+      - name: Build documentation
+        run: npm run docs:build

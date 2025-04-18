@@ -27,7 +27,7 @@ All commands are invoked via `codex-autotest <command> [options]`:
 - `docstring [--path PATH] [--apply]`
   Generates or previews docstrings for functions, classes, and methods.
 - `generate-tests [--path PATH] [--language LANG] [--framework FW] [--apply]`
-  Generates or previews unit tests for source files.
+  Generates or previews unit tests for source files. The `generate` command is a deprecated alias for `generate-tests --apply`.
 - `refactor [--path PATH] [--focus FOCUS] [--language LANG] [--apply]`
   Refactors code based on a focus (e.g. performance, readability).
 - `commit --staged [--model MODEL] [--max-tokens N]`

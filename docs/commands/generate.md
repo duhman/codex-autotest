@@ -1,10 +1,12 @@
 ---
-title: generate
+title: generate (deprecated)
 ---
 
-# `codex-autotest generate`
+---
+# `codex-autotest generate` (DEPRECATED)
 
-Generate tests for source code files.
+This command is deprecated. Please use `codex-autotest generate-tests --apply` instead.
+Refer to [generate-tests documentation](generate-tests.md) for details.
 
 ## Usage
 

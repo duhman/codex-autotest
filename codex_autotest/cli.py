@@ -10,6 +10,17 @@ import difflib
 import subprocess
 import re
 
+# Map file extensions to languages and vice versa
+EXT_TO_LANG = {
+    '.py': 'python',
+    '.js': 'javascript',
+    '.ts': 'typescript',
+    '.java': 'java',
+    '.go': 'go',
+    '.rb': 'ruby',
+}
+LANG_TO_EXT = {lang: ext for ext, lang in EXT_TO_LANG.items()}
+
 @click.group()
 def main():
     """codex-autotest: AI-assisted development commands (explain, test generation, docstrings, refactoring, commits, security audits)"""
@@ -27,59 +38,27 @@ def init(template):
     except FileExistsError:
         click.echo(f'Config file {config_path} already exists. Aborting.', err=True)
 
-@main.command()
-@click.option('--path', 'src_path', default=None, help='Source path to scan for files')
+@main.command(name='generate')
+@click.option('--path', 'src_path', default=None, help='(Deprecated) use generate-tests --apply instead')
 @click.option('--language', default=None, help='Language override')
 @click.option('--framework', default=None, help='Framework override')
 def generate(src_path, language, framework):
-    """Generate tests for source code files."""
-    # Load configuration
+    """[DEPRECATED] Alias for 'generate-tests --apply'."""
+    click.echo('Warning: "generate" is deprecated; please use "generate-tests --apply".', err=False)
+    # Ensure configuration exists (same as original generate behavior)
     try:
-        config = load_config()
+        load_config()
     except FileNotFoundError:
         click.echo('Configuration not found. Please run "codex-autotest init" first.', err=True)
         return
-    # Determine source path (flag overrides config)
-    path = src_path or config.get('src_path', None)
-    if not path:
-        click.echo('Source path must be provided or defined in config.', err=True)
-        return
-    lang = language or config.get('language', 'python')
-    fw = framework or config.get('framework', '')
-    prompts = config.get('prompts', {})
-    unit_prompt_tpl = prompts.get('unit_test', '')
-    # Check API key
-    try:
-        os.environ['OPENAI_API_KEY'] and None
-    except Exception:
-        click.echo('OPENAI_API_KEY is not set. Please export your API key.', err=True)
-        return
-    # Clear ChatCompletion cache and prepare templating
-    chat_completion.cache_clear()
-    use_str_template = '$' in unit_prompt_tpl
-    if use_str_template:
-        str_tpl = Template(unit_prompt_tpl)
-    ext_map = {'python': '.py', 'javascript': '.js'}
-    ext = ext_map.get(lang.lower(), '.py')
-    files = Path(path).rglob(f'*{ext}')
-    for f in files:
-        code = f.read_text()
-        if use_str_template:
-            prompt = str_tpl.safe_substitute(language=lang, framework=fw, code=code)
-        else:
-            prompt = unit_prompt_tpl.format(language=lang, framework=fw, code=code)
-        click.echo(f'Generating tests for {f}')
-        try:
-            test_code = chat_completion(prompt)
-        except Exception as e:
-            click.echo(f'Error generating tests for {f}: {e}', err=True)
-            continue
-        rel_path = f.relative_to(src_path)
-        # Determine test file path with matching extension
-        test_file = Path('tests') / rel_path.parent / f'test_{f.stem}{ext}'
-        test_file.parent.mkdir(parents=True, exist_ok=True)
-        test_file.write_text(test_code)
-        click.echo(f'Wrote tests to {test_file}')
+    # Invoke the new generate-tests command with apply flag
+    ctx = click.get_current_context()
+    ctx.invoke(generate_tests,
+               src_path=src_path,
+               language=language,
+               framework=framework,
+               apply_changes=True)
+    return
 
 @main.command()
 @click.argument('test_file')
@@ -98,8 +77,8 @@ def review(test_file):
     fw = config.get('framework', '')
     prompts = config.get('prompts', {})
     unit_prompt_tpl = prompts.get('unit_test', '')
-    ext_map = {'python': '.py', 'javascript': '.js'}
-    ext = ext_map.get(lang.lower(), '.py')
+    # Determine file extension based on language
+    ext = LANG_TO_EXT.get(lang.lower(), '.py')
 
     test_path = Path(test_file)
     if not test_path.exists():
@@ -301,17 +280,25 @@ def explain(target, language, model, max_tokens):
         snippet = '\n'.join(lines[start-1:end])
     else:
         snippet = content
-    ext_map = {'.py': 'python', '.js': 'javascript', '.ts': 'typescript', '.java': 'java',
-               '.go': 'go', '.rb': 'ruby'}
+    # Determine language from file extension or override
     ext = path.suffix.lower()
-    lang = language or ext_map.get(ext)
+    lang = language or EXT_TO_LANG.get(ext)
     if not lang:
         click.echo(f'Could not infer language from extension "{ext}"; specify --language', err=True)
         return
-    prompt = (
-        f"Explain what the following {lang} code does, providing a detailed, step-by-step "
-        f"explanation:\n\n{snippet}"
-    )
+    # Load user-configured prompt template or use default
+    try:
+        cfg = load_config()
+    except FileNotFoundError:
+        cfg = {}
+    prompts = cfg.get('prompts', {})
+    default_tpl = DEFAULT_CONFIG['prompts'].get('explain', '')
+    prompt_tpl = prompts.get('explain', default_tpl)
+    # Render the prompt
+    if '$' in prompt_tpl:
+        prompt = Template(prompt_tpl).safe_substitute(language=lang, code=snippet)
+    else:
+        prompt = prompt_tpl.format(language=lang, code=snippet)
     try:
         chat_completion.cache_clear()
     except Exception:
@@ -347,13 +334,10 @@ def docstring(src_path, apply_changes):
         click.echo('Source path must be provided or defined in config.', err=True)
         return
     files = Path(path).rglob('*.py')
-    default_prompt = (
-        'Write a Python docstring for the following {object_type} in {language} code, '
-        'including descriptions of parameters and return values where applicable:\n\n'
-        '{code}'
-    )
+    # Load user-configured docstring prompt or use default
     prompts = config.get('prompts', {})
-    prompt_tpl = prompts.get('docstring', default_prompt)
+    default_tpl = DEFAULT_CONFIG['prompts'].get('docstring', '')
+    prompt_tpl = prompts.get('docstring', default_tpl)
     error_files = False
     for f in files:
         content = f.read_text()
@@ -459,8 +443,8 @@ def generate_tests(src_path, language, framework, apply_changes):
     use_str_template = '$' in prompt_tpl
     if use_str_template:
         str_tpl = Template(prompt_tpl)
-    ext_map = {'python': '.py', 'javascript': '.js'}
-    ext = ext_map.get(lang.lower(), '.py')
+    # Determine file extension for tests based on language
+    ext = LANG_TO_EXT.get(lang.lower(), '.py')
     path_obj = Path(path)
     files = path_obj.rglob(f'*{ext}')
     for f in files:
@@ -635,9 +619,8 @@ def audit_security(src_path, language, output, apply_fixes):
         click.echo('Source path must be provided or defined in config.', err=True)
         return
     lang = language or config.get('language', 'python')
-    # Determine file extension for scanning
-    ext_map = {'python': '.py', 'javascript': '.js', 'typescript': '.ts'}
-    ext = ext_map.get(lang.lower(), '.py')
+    # Determine file extension for scanning based on language
+    ext = LANG_TO_EXT.get(lang.lower(), '.py')
     base = Path(path)
     files = list(base.rglob(f'*{ext}'))
     if not files:
