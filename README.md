@@ -61,15 +61,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 The full documentation is available in the `docs/` directory. You can preview it locally via Fumadocs:
 
-1. Install dependencies:
-   ```bash
-   npm install       # installs fumadocs from package.json devDependencies
-   ```
-2. Preview the docs:
-   ```bash
-   npm run docs:dev  # runs "fumadocs dev" via npm script
-   ```
-   or directly using npx:
-   ```bash
-   npx fumadocs@latest dev
-   ```
+To preview documentation locally, simply run:
+```bash
+npm run docs:dev
+```
+or directly with npx:
+```bash
+npx fumadocs@latest dev
+```

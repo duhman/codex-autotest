@@ -15,6 +15,27 @@ DEFAULT_CONFIG = {
         'kill_mutant': (
             'Write {framework} tests to kill the following mutant in {language} code:\n\n'
             '{diff}'
+        ),
+        'commit': (
+            'Write a conventional commit message (type, scope, subject) '
+            'for the following diff, following Conventional Commits format:\n\n'
+            '{diff}'
+        ),
+        'refactor': (
+            'Refactor the following {language} code focusing on {focus}. '
+            'Provide the entire updated code without extra commentary:\n\n'
+            '{code}'
+        ),
+        'audit_security': (
+            'Audit the following {language} code for security vulnerabilities. '
+            'List each issue with line numbers, a description, and a suggested fix:\n\n'
+            '{code}'
+        ),
+        # Template for generating conventional commit messages
+        'commit': (
+            'Write a conventional commit message (type, scope, subject) '
+            'for the following diff, following Conventional Commits format:\n\n'
+            '{diff}'
         )
     }
 }

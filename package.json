@@ -3,10 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "docs:dev": "fumadocs dev",
-    "docs:build": "fumadocs build"
-  },
-  "devDependencies": {
-    "fumadocs": "*"
+    "docs:dev": "npx fumadocs@latest dev",
+    "docs:build": "npx fumadocs@latest build"
   }
 }
